@@ -17,6 +17,8 @@ class Loader {
 }
 
 public class Musgen {
+	static int channel = 0;
+	static boolean simul = false;
 	static int note, vel, oct, intr; // note params
 	static int interv[] = new int[6]; // note intervals
 	static int minoct, maxoct; // min/max octave (inclusive)
@@ -30,6 +32,7 @@ public class Musgen {
 	}
 
 	public static void main(String[] args) throws Exception {
+
 		// Usage args:
 		// 0 <iterations (or 0 for endless)>
 		// 1 <instrument (-1 for random; works only if channels == 1)>
@@ -38,6 +41,7 @@ public class Musgen {
 		// 4 <BPM (0 for random)>
 		// 5 <channels (0 for random)>
 		// e.g. "java -jar bermusgen.jar 0 -1 0 -1 0 0" - fully randomized melody
+
 		String iterHolder = args[0], instrumentHolder = args[1], seedHolder = args[2], octaveHolder = args[3],
 				BPMHolder = args[4], chansHolder = args[5];
 
@@ -111,9 +115,18 @@ public class Musgen {
 
 		int ck = 0;
 		while (c < i) {
+			simul = rnd.nextBoolean();
 			while (ck < chans) {
-				playNote(ck);
+				channel = ck;
+				playNote();
 				ck++;
+			}
+			if (simul) {
+				Thread.sleep(intr);
+				if (rnd.nextBoolean())
+					mc[channel].allNotesOff();
+				if (rnd.nextBoolean())
+					mc[channel].noteOff(note);
 			}
 			ck = 0;
 			c++;
@@ -122,17 +135,21 @@ public class Musgen {
 		}
 	}
 
-	static void playNote(int channel) throws Exception {
-		randomNote(channel);
+	static void playNote() throws Exception {
+		randomNote();
 		System.out.println("Note #" + c + " on channel: " + channel + " octave: " + oct + " note id: " + note
 				+ " velocity: " + vel + " interval: " + intr + " ms " + "instrument: " + mc[channel].getProgram());
 		mc[channel].noteOn(note, vel);
-		Thread.sleep(intr);
-		if (rnd.nextBoolean())
-			mc[channel].allNotesOff();
+		if (!simul) {
+			Thread.sleep(intr);
+			if (rnd.nextBoolean())
+				mc[channel].allNotesOff();
+			if (rnd.nextBoolean())
+				mc[channel].noteOff(note);
+		}
 	}
 
-	static void randomNote(int channel) {
+	static void randomNote() {
 		if (instr == -1 && rnd.nextInt(100) == rnd.nextInt(100))
 			mc[channel].programChange(rand(0, 127));
 		if (rnd.nextBoolean())
