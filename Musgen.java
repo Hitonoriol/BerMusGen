@@ -19,7 +19,7 @@ class Loader {
 public class Musgen {
 	static int channel = 0;
 	static boolean simul = false;
-	static int note, vel, oct, intr; // note params
+	static int note, vel, oct, intr, nintr, bpm; // note params
 	static int interv[] = new int[6]; // note intervals
 	static int minoct, maxoct; // min/max octave (inclusive)
 	static Synthesizer Synth;
@@ -56,7 +56,6 @@ public class Musgen {
 		else
 			chans = Integer.parseInt(chansHolder);
 
-		int bpm;
 		if (BPMHolder.equals("0"))
 			bpm = rand(10, 320);
 		else
@@ -107,7 +106,9 @@ public class Musgen {
 			c = -1; // infinite mode
 
 		oct = rand(minoct, maxoct);
-		intr = interv[rand(0, 5)]; // if they won't change for the first time
+		int tt = rand(0, 5);
+		intr = interv[tt]; // if they don't change for the first time
+		nintr = tt;
 
 		System.out.println("Ready to play!\nSeed: " + seed + "\nChannels: " + chans + "\nBPM: " + bpm
 				+ "\nIntervals: 1/2: " + interv[1] + " 1/4: " + interv[2] + " 1/8: " + interv[3] + " 1/16: " + interv[4]
@@ -137,8 +138,8 @@ public class Musgen {
 
 	static void playNote() throws Exception {
 		randomNote();
-		System.out.println("Note #" + c + " on channel: " + channel + " octave: " + oct + " note id: " + note
-				+ " velocity: " + vel + " interval: " + intr + " ms " + "instrument: " + mc[channel].getProgram());
+		System.out.println("#" + c + " (" + noteName(note) + ")" + " (1/" + ((int) Math.pow(2, (nintr))) + " -> " + bpm
+				+ " bpm) " + "instrument: " + mc[channel].getProgram());
 		mc[channel].noteOn(note, vel);
 		if (!simul) {
 			Thread.sleep(intr);
@@ -149,13 +150,22 @@ public class Musgen {
 		}
 	}
 
+	static String noteName(int noteNum) {
+		String notes = "C C#D D#E F F#G G#A A#B ";
+		int octv = noteNum / 12 - 1;
+		return (notes.substring((noteNum % 12) * 2, (noteNum % 12) * 2 + 2)).trim() + octv;
+	}
+
 	static void randomNote() {
 		if (instr == -1 && rnd.nextInt(100) == rnd.nextInt(100))
 			mc[channel].programChange(rand(0, 127));
 		if (rnd.nextBoolean())
 			oct = rand(minoct, maxoct);
-		if (rnd.nextBoolean())
-			intr = interv[rand(0, 5)];
+		if (rnd.nextBoolean()) {
+			int tt = rand(0, 5);
+			intr = interv[tt];
+			nintr = tt;
+		}
 		note = rand((oct * 12) + 12, (oct * 12) + 23);
 		vel = rand(50, 700);
 	}
