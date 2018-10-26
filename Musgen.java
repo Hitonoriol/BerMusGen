@@ -1,23 +1,14 @@
 package bermusgen;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.util.Random;
 
 import javax.sound.midi.MidiChannel;
 import javax.sound.midi.MidiSystem;
 import javax.sound.midi.Synthesizer;
 
-class Loader {
-	void load() throws Exception {
-		Musgen.Synth.loadAllInstruments(
-				MidiSystem.getSoundbank(new BufferedInputStream(new FileInputStream(new File("bank.sf2")))));
-	}
-}
-
 public class Musgen {
 	static int channel = 0;
+	static boolean cbp = false, cbi = true; // constant note length, constant instruments
 	static boolean simul = false;
 	static int note, vel, oct, intr, nintr, bpm; // note params
 	static int interv[] = new int[6]; // note intervals
@@ -33,7 +24,7 @@ public class Musgen {
 
 	public static void main(String[] args) throws Exception {
 
-		// Usage args:
+		// Args:
 		// 0 <iterations (or 0 for endless)>
 		// 1 <instrument (-1 for random; works only if channels == 1)>
 		// 2 <seed (0 for random)>
@@ -72,7 +63,7 @@ public class Musgen {
 		if (iterHolder.equals("0"))
 			fl = true;
 
-		Loader bankLoader = new Loader();
+		MidiBankLoader bankLoader = new MidiBankLoader();
 		Synth = MidiSystem.getSynthesizer();
 		Synth.open();
 		bankLoader.load();
@@ -119,16 +110,28 @@ public class Musgen {
 			simul = rnd.nextBoolean();
 			while (ck < chans) {
 				channel = ck;
-				playNote();
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							playNote();
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				}).start();
 				ck++;
 			}
 			if (simul) {
 				Thread.sleep(intr);
-				if (rnd.nextBoolean())
-					mc[channel].allNotesOff();
-				if (rnd.nextBoolean())
-					mc[channel].noteOff(note);
 			}
+			ck = 0;
+			while (ck < chans) {
+				channel = ck;
+				mc[channel].allNotesOff();
+				ck++;
+			}
+
 			ck = 0;
 			c++;
 			if (fl)
@@ -137,16 +140,21 @@ public class Musgen {
 	}
 
 	static void playNote() throws Exception {
-		randomNote();
-		System.out.println("#" + c + " (" + noteName(note) + ")" + " (1/" + ((int) Math.pow(2, (nintr))) + " -> " + bpm
-				+ " bpm) " + "instrument: " + mc[channel].getProgram());
-		mc[channel].noteOn(note, vel);
-		if (!simul) {
-			Thread.sleep(intr);
-			if (rnd.nextBoolean())
-				mc[channel].allNotesOff();
-			if (rnd.nextBoolean())
-				mc[channel].noteOff(note);
+		if (rand(0, 5) == rand(0, 5)) {
+			System.out.println("Skipping channel #" + channel + " this step. Yaaay!");
+		} else {
+			randomNote();
+			System.out.println("Step #" + c + " Channel #" + channel + " (" + noteName(note) + ")" + " (1/"
+					+ ((int) Math.pow(2, (nintr))) + " -> " + bpm + " bpm) " + "instrument: "
+					+ mc[channel].getProgram());
+			mc[channel].noteOn(note, vel);
+			if (!simul) {
+				Thread.sleep(intr);
+				if (rnd.nextBoolean())
+					mc[channel].allNotesOff();
+				if (rnd.nextBoolean())
+					mc[channel].noteOff(note);
+			}
 		}
 	}
 
@@ -161,11 +169,13 @@ public class Musgen {
 			mc[channel].programChange(rand(0, 127));
 		if (rnd.nextBoolean())
 			oct = rand(minoct, maxoct);
-		if (rnd.nextBoolean()) {
+		if (rnd.nextBoolean() && !cbp) {
 			int tt = rand(0, 5);
 			intr = interv[tt];
 			nintr = tt;
 		}
+		if (rnd.nextBoolean() && !cbi)
+			mc[channel].programChange(rand(0, 127));
 		note = rand((oct * 12) + 12, (oct * 12) + 23);
 		vel = rand(50, 700);
 	}
