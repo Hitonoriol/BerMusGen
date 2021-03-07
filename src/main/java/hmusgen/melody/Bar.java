@@ -16,7 +16,7 @@ public class Bar {
 	}
 
 	public boolean addNote(Note note) {
-		float newBarLen = curLen + basePulse.type.relationTo(note.length.type);
+		float newBarLen = curLen + basePulse.relationTo(note.length);
 		if (newBarLen > maxLen)
 			return false;
 
@@ -33,8 +33,19 @@ public class Bar {
 		return curLen == maxLen;
 	}
 
+	public Note getNote(int note) {
+		if (note >= notes.size())
+			return null;
+
+		return notes.get(note);
+	}
+
 	public List<Note> getNotes() {
 		return notes;
+	}
+
+	public int getNoteCount() {
+		return notes.size();
 	}
 
 	@Override

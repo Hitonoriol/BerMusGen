@@ -1,76 +1,33 @@
 package hmusgen;
 
-import java.util.Arrays;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
-import java.util.Scanner;
 
 public class GenMain {
 	private static Random random = new Random();
 
-	MidiPlayer player = new MidiPlayer();
-	MelodyGenerator generator = new MelodyGenerator(player);
-
-	void exec(String in) {
-		String commandList[] = in.trim().split(";", 2);
-		String tokens[] = commandList[0].split(" ");
-		String cmd = tokens[0].trim();
-		boolean hasArgs = tokens.length > 1;
-
-		if (cmd.equals("gen")) {
-			int maxBars = hasArgs ? val(tokens[1]) : rand(10, 30);
-			player.setMelody(generator.generate(maxBars));
-		}
-
-		if (cmd.equals("instr_rand"))
-			generator.randomizeInstruments();
-
-		if (cmd.equals("parts"))
-			generator.setParts(val(tokens[1]));
-
-		if (cmd.equals("instr_set"))
-			player.changeInstrument(val(tokens[1]), val(tokens[2]));
-
-		if (cmd.equals("oct_range"))
-			generator.setOctaveRange(val(tokens[1]), val(tokens[2]));
-
-		if (cmd.equals("allow_notes"))
-			generator.addAllowedNotes(Arrays.copyOfRange(tokens, 1, tokens.length));
-
-		if (cmd.equals("bpm"))
-			generator.setBPM(val(tokens[1]));
-
-		if (cmd.equals("play"))
-			player.play();
-		
-		if (cmd.equals("stop"))
-			player.stop();
-
-		if (cmd.equals("save"))
-			player.saveSequence(tokens[1] + ".midi");
-		
-		if (cmd.equals("load"))
-			player.loadSequence(tokens[1]);
-
-		if (commandList.length > 1)
-			exec(commandList[1]);
+	private static NumberFormat numberFormatter = NumberFormat.getInstance(Locale.US);
+	static {
+		numberFormatter.setMinimumFractionDigits(0);
+		numberFormatter.setRoundingMode(RoundingMode.HALF_UP);
 	}
 
 	public static void main(String[] args) {
-		GenMain main = new GenMain();
-		Scanner scan = new Scanner(System.in);
-		String in = args.length > 1 ? String.join(" ", args) : "---";
-
-		while (!in.equals("")) {
-			main.exec(in);
-			out("> ");
-			in = scan.nextLine();
-		}
-		scan.close();
+		HMusGen app = new HMusGen();
+		app.printHelpMenu();
+		app.executeConsoleArgs(args);
+		app.listenForCommands();
 	}
 
 	static int val(String numStr) {
 		return Integer.parseInt(numStr);
+	}
+
+	public static Random random() {
+		return random;
 	}
 
 	static boolean percentRand(double percent) {
@@ -98,6 +55,23 @@ public class GenMain {
 
 	public static void out(String str) {
 		System.out.print(str);
+	}
+
+	public static void out(String str, int width) {
+		out(setWidth(str, width));
+	}
+
+	public static String round(double num) {
+		return round(num, 3);
+	}
+
+	public static String round(double num, int n) {
+		numberFormatter.setMaximumFractionDigits(n);
+		return numberFormatter.format(num);
+	}
+
+	public static String setWidth(String string, int length) {
+		return String.format("%1$" + length + "s", string);
 	}
 
 }
