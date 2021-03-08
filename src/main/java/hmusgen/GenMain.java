@@ -73,5 +73,4 @@ public class GenMain {
 	public static String setWidth(String string, int length) {
 		return String.format("%1$" + length + "s", string);
 	}
-
 }

@@ -31,6 +31,7 @@ public class Note {
 		this.value = note.value;
 		this.length = note.length;
 		this.velocity = note.velocity;
+		this.lengthTimes = note.lengthTimes;
 	}
 
 	public Note setVelocity(int velocity) {
@@ -57,18 +58,25 @@ public class Note {
 		return lengthTimes * length.toPPQ();
 	}
 
+	public Length getLength() {
+		if (this.length == Length.MIDIDefault && lengthTimes > 1)
+			return Length.fromPPQ(lengthTimes);
+
+		return this.length;
+	}
+
 	public boolean isRest() {
 		return value == REST;
 	}
 
-	static final String NOTE_NAMES = "C C#D D#E F F#G G#A A#B ";
+	static final String NOTE_NAMES[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 	public String getName(boolean withOctave) {
 		if (isRest())
 			return "-";
 
 		int octv = value / 12 - 1;
-		String name = (NOTE_NAMES.substring((value % 12) * 2, (value % 12) * 2 + 2)).trim();
+		String name = NOTE_NAMES[value % 12];
 		return withOctave ? name + octv : name;
 	}
 
@@ -110,10 +118,13 @@ public class Note {
 
 		private final String name;
 		public static final Length values[] = values();
+		public final static Length MIDIDefault;
 		static Map<Integer, Length> PPQMap = new HashMap<>();
+
 		static {
 			for (Length len : values)
 				PPQMap.put(len.toPPQ(), len);
+			MIDIDefault = fromPPQ(1);
 		}
 
 		Length(String name) {

@@ -3,12 +3,15 @@ package hmusgen.melody;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 
 import hmusgen.GenMain;
 import hmusgen.MarkovChain;
+import hmusgen.melody.Note.Length;
 
 public class Melody {
 	private List<List<Bar>> partList = new ArrayList<>();
@@ -29,18 +32,41 @@ public class Melody {
 		partList.get(partIdx).add(bar);
 	}
 
-	public MarkovChain extractIntervalChain() {
-		MarkovChain chain = new MarkovChain(13); // From unison to octave
-		MutableInt prevInterval = new MutableInt(-1);
+	private MarkovChain extractNoteChain(int chainSize, BiFunction<Note, Note, Integer> noteStateTransition) {
+		MarkovChain chain = new MarkovChain(chainSize);
+		MutableInt prevState = new MutableInt(-1);
 		forEachNotePair((noteA, noteB) -> {
-			int interval = Math.abs(noteA.value - noteB.value);
+			int state = noteStateTransition.apply(noteA, noteB);
+			if (prevState.intValue() != -1 && state != -1)
+				chain.addTransition(prevState.intValue(), state);
 
-			if (prevInterval.intValue() != -1)
-				chain.addTransition(prevInterval.intValue(), interval);
-
-			prevInterval.setValue(interval);
+			prevState.setValue(state);
 		});
+		return chain;
+	}
+
+	private MarkovChain extractNoteChain(int chainSize, Function<Note, Integer> noteStateTransition) {
+		return extractNoteChain(chainSize, (noteA, noteB) -> noteStateTransition.apply(noteA));
+	}
+
+	public MarkovChain extractIntervalChain() {
+		// From unison to double octave
+		MarkovChain chain = extractNoteChain(25, (noteA, noteB) -> Math.abs(noteA.value - noteB.value));
 		GenMain.print("Melody interval transition matrix:");
+		chain.dump();
+		return chain;
+	}
+
+	public MarkovChain extractRhythmChain() {
+		MarkovChain chain = extractNoteChain(6, note -> {
+			Length len = note.getLength();
+			if (len == null)
+				return -1;
+
+			return len.ordinal();
+		});
+
+		GenMain.print("Note duration (1 - 1/32) transition matrix:");
 		chain.dump();
 		return chain;
 	}
@@ -54,6 +80,8 @@ public class Melody {
 			}
 
 			notesConsumer.accept(prevNote, note);
+			
+			prevNote.set(note);
 		});
 	}
 

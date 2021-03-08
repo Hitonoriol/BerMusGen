@@ -1,6 +1,7 @@
 package hmusgen;
 
 import consoleapp.ConsoleApplication;
+import hmusgen.melody.Melody;
 
 public class HMusGen extends ConsoleApplication {
 
@@ -58,11 +59,15 @@ public class HMusGen extends ConsoleApplication {
 					player.loadSequence(args.getString(0));
 				});
 
-		addCommand("markov_intervals",
-				"Build interval transition matrix based on current melody",
-				() -> generator.setIntervalChain(player.extractMelody().extractIntervalChain()));
+		addCommand("markov_extract",
+				"Build transition matrices based on current melody: for intervals & rhythm",
+				() -> {
+					Melody melody = player.extractMelody();
+					generator.setIntervalChain(melody.extractIntervalChain());
+					generator.setRhythmChain(melody.extractRhythmChain());
+				});
 
-		addCommand("gen_mode <Random | MarkovIntervals>",
+		addCommand("gen_mode <Random | Markov>",
 				"Set note pitch generation mode",
 				args -> generator.setGenerationMethod(MelodyGenerator.Method.valueOf(args.nextString())));
 

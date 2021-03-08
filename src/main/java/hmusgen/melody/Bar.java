@@ -5,8 +5,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Bar {
-	private Note.Length basePulse;
+	private Note.Length basePulse = Note.Length.QUARTER;
 	private float curLen, maxLen;
+	private boolean endless = false;
 
 	private List<Note> notes = new ArrayList<>();
 
@@ -15,9 +16,13 @@ public class Bar {
 		this.basePulse = basePulse;
 	}
 
+	public Bar() {
+		endless = true;
+	}
+
 	public boolean addNote(Note note) {
 		float newBarLen = curLen + basePulse.relationTo(note.length);
-		if (newBarLen > maxLen)
+		if (!endless && newBarLen > maxLen)
 			return false;
 
 		notes.add(note);
@@ -31,6 +36,10 @@ public class Bar {
 
 	public boolean isFull() {
 		return curLen == maxLen;
+	}
+
+	public boolean isEmpty() {
+		return notes.isEmpty();
 	}
 
 	public Note getNote(int note) {

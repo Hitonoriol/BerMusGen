@@ -26,6 +26,7 @@ public class MidiPlayer {
 	private Synthesizer synth;
 	private MidiChannel[] mc;
 	private Sequencer sequencer;
+	private Instrument instrument[];
 	private int instruments;
 	private Sequence sequence;
 
@@ -54,6 +55,8 @@ public class MidiPlayer {
 			synth.open();
 			mc = synth.getChannels();
 			sequencer = MidiSystem.getSequencer();
+			instrument = synth.getLoadedInstruments();
+			instruments = instrument.length;
 			if (sequencer == null)
 				throw (new Exception("Failed to initialize sequencer."));
 			else {
@@ -115,12 +118,21 @@ public class MidiPlayer {
 
 	public Melody extractMelody() {
 		Melody melody = new Melody((int) sequencer.getTempoInBPM());
-		Track tracks[] = sequencer.getSequence().getTracks();
+		Sequence sequence = sequencer.getSequence();
+		Track tracks[] = sequence.getTracks();
+
+		if (sequence.getDivisionType() != Sequence.PPQ)
+			return null;
+
+		int denom = sequence.getResolution() / PPQ;
+		GenMain.print("Dividing note durations by " + denom);
 
 		MidiEvent event;
 		MidiMessage msg;
 
-		Bar bar = new Bar(Integer.MAX_VALUE, Note.Length.QUARTER);
+		Bar[] bar = new Bar[channels];
+		for (int i = 0; i < bar.length; ++i)
+			bar[i] = new Bar();
 
 		Note[] curNote = new Note[channels];
 		long[] noteStart = new long[channels],
@@ -140,26 +152,31 @@ public class MidiPlayer {
 					if (sm.getCommand() == ShortMessage.NOTE_ON) {
 						curNote[channel] = new Note().setValue(note).setVelocity(velocity);
 						noteStart[channel] = event.getTick();
-						//GenMain.print("#" + noteStart[channel] + ": NOTE_ON ch. " + channel);
 
-						if ((delta[channel] = noteStart[channel] - noteEnd[channel]) > 0)
-							bar.addNote(new Note().setLength(Length.fromPPQ(1), (int) delta[channel]));
+						if ((delta[channel] = (noteEnd[channel] - noteStart[channel]) / denom) > 0)
+							bar[channel].addNote(new Note().setLength(Length.MIDIDefault, (int) delta[channel]));
 					} else if (sm.getCommand() == ShortMessage.NOTE_OFF) {
 						noteEnd[channel] = event.getTick();
 
-						int dur = (int) (noteEnd[channel] - noteStart[channel]);
+						int dur = (int) (noteEnd[channel] - noteStart[channel]) / denom;
 						Note.Length len = Note.Length.fromPPQ(dur);
+
 						if (len == null)
-							curNote[channel].setLength(Note.Length.fromPPQ(1), dur);
+							curNote[channel].setLength(Length.MIDIDefault, dur);
 						else
 							curNote[channel].setLength(len);
 
-						bar.addNote(curNote[channel]);
-						//GenMain.print("#" + noteEnd[channel] + ": NOTE_OFF ch. " + channel);
+						bar[channel].addNote(curNote[channel]);
 					}
 				}
 			}
-		melody.addBar(0, bar);
+
+		for (int i = 0; i < bar.length; ++i)
+			if (!bar[i].isEmpty()) {
+				melody.addBar(i, bar[i]);
+				GenMain.print("Adding part #" + i + " to the melody");
+			}
+
 		return melody;
 	}
 
@@ -202,10 +219,8 @@ public class MidiPlayer {
 	int getInstrumentCount() {
 		return instruments;
 	}
-	
+
 	public void listInstruments() {
-		Instrument instrument[] = synth.getLoadedInstruments();
-		instruments = instrument.length;
 		for (int i = 0; i < instruments; ++i)
 			GenMain.print("#" + i + ": " + instrument[i].getName());
 		GenMain.print("\n");

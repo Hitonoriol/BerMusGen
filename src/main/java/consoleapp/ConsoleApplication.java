@@ -19,6 +19,7 @@ public abstract class ConsoleApplication {
 
 	public ConsoleApplication() {
 		addCommand(helpCmd, () -> printHelpMenu());
+		addCommand(exitCmd, () -> exit());
 	}
 
 	public ConsoleApplication addCommand(String name, String description, CommandConsumer cmdAction) {
@@ -71,7 +72,7 @@ public abstract class ConsoleApplication {
 	public void listenForCommands() {
 		scanner = new Scanner(System.in);
 		String in = "";
-		while (!in.equals(exitCmd)) {
+		while (true) {
 			System.out.print(promptStr);
 			in = scanner.nextLine();
 			try {
@@ -83,7 +84,6 @@ public abstract class ConsoleApplication {
 					System.exit(-1);
 			}
 		}
-		exit();
 	}
 
 	public void exit() {

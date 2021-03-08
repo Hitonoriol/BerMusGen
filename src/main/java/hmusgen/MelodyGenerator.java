@@ -23,7 +23,7 @@ public class MelodyGenerator {
 
 	private MidiPlayer player;
 	private Melody melody;
-	private MarkovChain intervalChain;
+	private MarkovChain intervalChain, rhythmChain;
 
 	public MelodyGenerator(MidiPlayer player) {
 		this.player = player;
@@ -33,7 +33,7 @@ public class MelodyGenerator {
 	}
 
 	private void generateMarkovIntervals() {
-		final int maxInterval = 12;
+		final int maxInterval = 24;
 		MutableInt totalNotes = new MutableInt(0), initialInterval = new MutableInt(-1);
 		List<Note> firstNotes = new ArrayList<>(2);
 		melody.forEachBar(bar -> {
@@ -48,17 +48,17 @@ public class MelodyGenerator {
 				if (firstNotes.size() >= 2) {
 					do
 						initialInterval.setValue(
-								Math.abs(firstNotes.get(0).setValue(genNote(minOct, minOct + 1)).value
-										- firstNotes.get(1).setValue(genNote(minOct, minOct + 1)).value));
+								Math.abs(firstNotes.get(0).setValue(genNote(minOct, maxOct)).value
+										- firstNotes.get(1).setValue(genNote(minOct, maxOct)).value));
 					while (initialInterval.intValue() == -1 || initialInterval.intValue() > maxInterval);
 				}
 			}
 		});
 
 		GenMain.out(firstNotes.get(0).getName() + " & " + firstNotes.get(1).getName());
-		GenMain.print("Created first 2 notes with interval: " + initialInterval.intValue() + " semitones");
+		GenMain.print("\nCreated first 2 notes with interval: " + initialInterval.intValue() + " semitones");
 
-		int intervalsToGenerate = 1 + ((totalNotes.intValue() - 2) / 2);
+		int intervalsToGenerate = 1 + totalNotes.intValue() - 2;
 		GenMain.print("Generating " + intervalsToGenerate + "intervals using current transition matrix...");
 
 		List<Integer> intervals = new ArrayList<>();
@@ -100,7 +100,7 @@ public class MelodyGenerator {
 
 		// Generate notes
 		switch (generationMethod) {
-		case MarkovIntervals:
+		case Markov:
 			generateMarkovIntervals();
 			break;
 		case Random:
@@ -144,6 +144,10 @@ public class MelodyGenerator {
 
 	public void setIntervalChain(MarkovChain chain) {
 		intervalChain = chain;
+	}
+	
+	public void setRhythmChain(MarkovChain chain) {
+		rhythmChain = chain;
 	}
 
 	public MelodyGenerator addAllowedNotes(String notes[]) {
@@ -199,12 +203,6 @@ public class MelodyGenerator {
 		return GenMain.rand((octave * 12) + 12, (octave * 12) + 23);
 	}
 
-	MutableInt interval = new MutableInt();
-
-	private int markovGenNote(MutableInt currentInterval) {
-		return getNote(note -> intervalChain.changeState(currentInterval));
-	}
-
 	private Bar randomBar(Bar bar) {
 		Note note;
 		while (!bar.isFull()) {
@@ -223,6 +221,6 @@ public class MelodyGenerator {
 	}
 
 	public static enum Method {
-		Random, MarkovIntervals
+		Random, Markov
 	}
 }

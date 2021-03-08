@@ -2,8 +2,6 @@ package hmusgen;
 
 import java.util.function.Consumer;
 
-import org.apache.commons.lang3.mutable.MutableInt;
-
 public class MarkovChain {
 	private double[][] tranMatrix;
 	private int states;
@@ -35,24 +33,30 @@ public class MarkovChain {
 	}
 
 	public void changeNStates(int currentState, int statesToChange, Consumer<Integer> stateConsumer) {
+		int newState;
 		for (; statesToChange >= 0; --statesToChange) {
-			double r = GenMain.random().nextDouble();
-			double sum = 0d;
-
-			for (int j = 0; j < this.states; ++j) {
-				sum += getTransitionProbability(currentState, j);
-				if (r <= sum) {
-					stateConsumer.accept(currentState = j);
-					break;
-				}
-			}
-
+			stateConsumer.accept(newState = changeState(currentState));
+			currentState = newState;
 		}
 	}
 
-	public MutableInt changeState(MutableInt currentState) {
-		changeNStates(currentState.intValue(), 1, newState -> currentState.setValue(newState));
+	public int changeState(int currentState) {
+		double r = GenMain.random().nextDouble();
+		double sum = 0d;
+
+		for (int j = 0; j < this.states; ++j) {
+			sum += getTransitionProbability(currentState, j);
+			if (r <= sum) 
+				return j;
+		}
 		return currentState;
+	}
+
+	public int pickNonNullState() {
+		for (int i = 0; i < states; ++i)
+			if (tranMatrix[i][states] > 0)
+				return i;
+		return -1;
 	}
 
 	public int getStates() {
