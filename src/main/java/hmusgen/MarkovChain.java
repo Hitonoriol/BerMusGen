@@ -1,5 +1,7 @@
 package hmusgen;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class MarkovChain {
@@ -46,16 +48,22 @@ public class MarkovChain {
 
 		for (int j = 0; j < this.states; ++j) {
 			sum += getTransitionProbability(currentState, j);
-			if (r <= sum) 
+			if (r <= sum)
 				return j;
 		}
 		return currentState;
 	}
 
 	public int pickNonNullState() {
-		for (int i = 0; i < states; ++i)
-			if (tranMatrix[i][states] > 0)
-				return i;
+		Set<Integer> usedStates = new HashSet<>();
+		int state;
+		do {
+			if (!usedStates.add(state = GenMain.rand(0, states - 1)))
+				continue;
+
+			if (tranMatrix[state][states] > 0)
+				return state;
+		} while (usedStates.size() < states);
 		return -1;
 	}
 

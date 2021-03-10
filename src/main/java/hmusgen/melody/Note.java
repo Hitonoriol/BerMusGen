@@ -69,14 +69,27 @@ public class Note {
 		return value == REST;
 	}
 
+	public int applyInterval(int semitones) {
+		int value = this.value;
+		value += semitones;
+
+		while (value > MIDI_PITCH_MAX)
+			value -= OCTAVE;
+
+		while (value < 0)
+			value += OCTAVE;
+		return value;
+	}
+
+	static final int MIDI_PITCH_MAX = 127, OCTAVE = 12;
 	static final String NOTE_NAMES[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 	public String getName(boolean withOctave) {
 		if (isRest())
 			return "-";
 
-		int octv = value / 12 - 1;
-		String name = NOTE_NAMES[value % 12];
+		int octv = value / OCTAVE - 1;
+		String name = NOTE_NAMES[Math.abs(value) % OCTAVE];
 		return withOctave ? name + octv : name;
 	}
 
@@ -102,6 +115,11 @@ public class Note {
 				.append(length, rhs.length)
 				.append(velocity, rhs.velocity)
 				.isEquals();
+	}
+
+	@Override
+	public String toString() {
+		return getLength().getName() + getName() + "(" + value + ")";
 	}
 
 	public static final Note emptyNote = new Note().setValue(0xDEAD);

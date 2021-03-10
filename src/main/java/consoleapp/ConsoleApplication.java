@@ -81,7 +81,7 @@ public abstract class ConsoleApplication {
 				e.printStackTrace();
 
 				if (shutdownOnException)
-					System.exit(-1);
+					exit();
 			}
 		}
 	}

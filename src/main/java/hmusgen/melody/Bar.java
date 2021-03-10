@@ -60,7 +60,7 @@ public class Bar {
 	@Override
 	public String toString() {
 		String noteList = notes.stream()
-				.map(note -> note.length.getName() + note.getName() + " ")
+				.map(note -> note.toString() + " ")
 				.collect(Collectors.joining());
 		return maxLen + "*" + basePulse.getName() + " | "
 				+ noteList;

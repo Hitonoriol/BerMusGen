@@ -12,12 +12,13 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import hmusgen.melody.Bar;
 import hmusgen.melody.Melody;
 import hmusgen.melody.Note;
+import hmusgen.melody.Note.Length;
 
 public class MelodyGenerator {
 	private int bpm;
-	private int minOct = 0, maxOct = 7;
+	private int minOct = 1, maxOct = 6;
 	private int parts = 2;
-	private double restProb = 25;
+	private double restProb = 15;
 	private Set<String> allowedNotes = new HashSet<>();
 	private Method generationMethod = Method.Random;
 
@@ -32,41 +33,47 @@ public class MelodyGenerator {
 		maxOct = getRandomOctave();
 	}
 
+	private Bar markovBar(Bar bar) {
+		int length, newLength;
+		bar.addNote(new Note().setLength(Length.values[length = rhythmChain.pickNonNullState()]));
+		while (!bar.isFull()) {
+			bar.addNote(new Note().setLength(Length.values[newLength = rhythmChain.changeState(length)]));
+			length = newLength;
+		}
+		return bar;
+	}
+
 	private void generateMarkovIntervals() {
-		final int maxInterval = 24;
-		MutableInt totalNotes = new MutableInt(0), initialInterval = new MutableInt(-1);
+		MutableInt totalNotes = new MutableInt(0);
 		List<Note> firstNotes = new ArrayList<>(2);
 		melody.forEachBar(bar -> {
 			totalNotes.add(bar.getNoteCount());
-			if (initialInterval.intValue() == -1) {
-				bar.getNotes().forEach(note -> {
-					if (firstNotes.size() >= 2)
-						return;
+			bar.getNotes().forEach(note -> {
+				if (firstNotes.size() >= 2)
+					return;
 
-					firstNotes.add(note);
-				});
-				if (firstNotes.size() >= 2) {
-					do
-						initialInterval.setValue(
-								Math.abs(firstNotes.get(0).setValue(genNote(minOct, maxOct)).value
-										- firstNotes.get(1).setValue(genNote(minOct, maxOct)).value));
-					while (initialInterval.intValue() == -1 || initialInterval.intValue() > maxInterval);
-				}
-			}
+				firstNotes.add(note);
+			});
 		});
 
-		GenMain.out(firstNotes.get(0).getName() + " & " + firstNotes.get(1).getName());
-		GenMain.print("\nCreated first 2 notes with interval: " + initialInterval.intValue() + " semitones");
+		int initialInterval = intervalChain.pickNonNullState();
+		Note fNote = firstNotes.get(0);
+		fNote.setValue(genNote(minOct, maxOct));
+		firstNotes.get(1).setValue(fNote.value + initialInterval);
 
-		int intervalsToGenerate = 1 + totalNotes.intValue() - 2;
-		GenMain.print("Generating " + intervalsToGenerate + "intervals using current transition matrix...");
+		GenMain.print("\nCreated first 2 notes " + initialInterval + " semitones apart");
+
+		int intervalsToGenerate = totalNotes.intValue() - 2;
+		GenMain.print("Generating " + intervalsToGenerate + " intervals using current transition matrix...");
 
 		List<Integer> intervals = new ArrayList<>();
-		intervalChain.changeNStates(initialInterval.intValue(), intervalsToGenerate,
+		intervalChain.changeNStates(initialInterval, intervalsToGenerate,
 				newInterval -> intervals.add(newInterval));
 
 		MutableInt curInterval = new MutableInt(0);
+		Note prevNote = new Note();
 		melody.forEachNotePair((noteA, noteB) -> {
+			//GenMain.print("A: " + noteA.toString() + " | B: " + noteB.toString());
 			if (!noteB.isRest())
 				return;
 
@@ -74,15 +81,18 @@ public class MelodyGenerator {
 				return;
 
 			int dir = (GenMain.random().nextBoolean() ? 1 : -1);
-			if (noteA.value >= 110)
-				dir = -1;
-			else if (noteA.value <= 10)
-				dir = 1;
 
 			if (curInterval.intValue() >= intervals.size())
 				return;
 
-			noteB.value = noteA.value + (dir * intervals.get(curInterval.getAndIncrement()));
+			if (!noteA.isRest())
+				prevNote.set(noteA);
+
+			noteB.setValue((noteA.isRest() ? prevNote : noteA)
+					.applyInterval(dir * intervals.get(curInterval.getAndIncrement())));
+
+			if (noteA.isRest())
+				prevNote.set(noteB);
 		});
 		GenMain.print("Done!");
 	}
@@ -94,9 +104,18 @@ public class MelodyGenerator {
 		melody = new Melody(bpm);
 
 		// Generate rhythm
+		Bar bar = null;
 		for (int part = 0; part < parts; ++part)
-			for (int i = 0; i < maxBars; ++i)
-				melody.addBar(part, randomBar(new Bar(4, Note.Length.QUARTER)));
+			for (int i = 0; i < maxBars; ++i) {
+				bar = new Bar(4, Note.Length.QUARTER);
+
+				if (generationMethod == Method.Random)
+					bar = randomBar(bar);
+				else if (generationMethod == Method.Markov)
+					bar = markovBar(bar);
+
+				melody.addBar(part, bar);
+			}
 
 		// Generate notes
 		switch (generationMethod) {
@@ -110,7 +129,10 @@ public class MelodyGenerator {
 			break;
 		}
 
-		GenMain.print("Generated melody!");
+		melody.forEachNote(note -> note.setVelocity(getRandomVelocity()));
+
+		GenMain.print("Generated new melody!");
+		GenMain.print("Generation method: " + generationMethod.name());
 		GenMain.print("BPM: " + melody.getBpm());
 		GenMain.print("Min octave: " + minOct + " | Max octave: " + maxOct);
 		melody.dump();
@@ -145,7 +167,7 @@ public class MelodyGenerator {
 	public void setIntervalChain(MarkovChain chain) {
 		intervalChain = chain;
 	}
-	
+
 	public void setRhythmChain(MarkovChain chain) {
 		rhythmChain = chain;
 	}
@@ -207,8 +229,7 @@ public class MelodyGenerator {
 		Note note;
 		while (!bar.isFull()) {
 			note = new Note()
-					.setLength(getRandomNoteLength())
-					.setVelocity(getRandomVelocity());
+					.setLength(getRandomNoteLength());
 
 			while (!bar.addNote(note))
 				note.setLength(getRandomNoteLength());

@@ -10,9 +10,10 @@ public class HMusGen extends ConsoleApplication {
 
 	public HMusGen() {
 		addCommand("gen [bars]",
-				"Generate specified quantity (or 10 - 30 if absent) of 4/4 bars using current configuration",
+				"Generate specified quantity (or 15 by default) of 4/4 bars using current configuration",
 				args -> {
-					int maxBars = args.isPresent() ? args.nextInt() : GenMain.rand(10, 30);
+					int maxBars = args.isPresent() ? args.nextInt() : 15;
+					GenMain.print("Generating " + maxBars + " bars...");
 					player.setMelody(generator.generate(maxBars));
 				});
 
